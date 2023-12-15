@@ -53,7 +53,7 @@ function Home() {
 
       const stakedCount = owners.length - filteredOwners.length;
 
-      const callsPerSecond = 50;
+      const callsPerSecond = 100;
       const delayBetweenCalls = 1000 / callsPerSecond;
 
       async function processStakedData(startIndex) {
