@@ -241,8 +241,8 @@ function Home() {
               </option>
             ))}
           </datalist>
-          <Tooltip label="Data may take some minutes to load" hasArrow>
-            <VStack spacing={4}>
+          <VStack spacing={4}>
+            <Tooltip label="Data may take some minutes to load" hasArrow>
               <Button
                 bg="green.500"
                 w={["90%", "70%", "50%", "40%"]}
@@ -251,26 +251,28 @@ function Home() {
               >
                 Get Data
               </Button>
-              {allOwnersData.length > 0 && (
-                <>
-                  <Button
-                    bg="green.500"
-                    w={["90%", "70%", "50%", "40%"]}
-                    onClick={downloadAirdropContent}
-                  >
-                    Download Excel {allOwnersData.length}
-                  </Button>
+            </Tooltip>
+            {allOwnersData.length > 0 && (
+              <>
+                <Button
+                  bg="green.500"
+                  w={["90%", "70%", "50%", "40%"]}
+                  onClick={downloadAirdropContent}
+                >
+                  Download Excel {allOwnersData.length}
+                </Button>
 
-                  {!isStakingContractPrebuilt && (
-                    <Text color="white">
-                      {nonWalletAddressCount} NFTs in your collection are owned
-                      by contracts(could be staking etc)
-                    </Text>
-                  )}
-                </>
-              )}
-            </VStack>
-          </Tooltip>
+                {!isStakingContractPrebuilt && (
+                  <Text color="white">
+                    <b>{nonWalletAddressCount} </b>NFTs in your collection are
+                    owned by contracts &
+                    <b>{allOwnersData.length - nonWalletAddressCount}</b> are
+                    owned by real wallet addresses
+                  </Text>
+                )}
+              </>
+            )}
+          </VStack>
         </VStack>
       </Flex>
     </>
