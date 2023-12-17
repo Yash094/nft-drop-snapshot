@@ -3,60 +3,66 @@ import {
   InputGroup,
   Heading,
   Flex,
-  Spinner,
+  Checkbox,
   FormLabel,
   Input,
   Button,
-  Tooltip
+  Tooltip,
+  Alert,
+  AlertIcon,
+  Text,
 } from "@chakra-ui/react";
 import { useRef, useState } from "react";
-import { Chain, allChains } from "@thirdweb-dev/chains";
+import { allChains } from "@thirdweb-dev/chains";
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 
 // Add your constant values
 const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000";
 
 function Home() {
   const [nftCollectionAddress, setNftCollection] = useState("");
   const [stakingContractAddress, setStakingContract] = useState("");
+  const [nonWalletAddressCount, setNotWalletAddressCount] = useState(0);
+  const [isStakingContractPrebuilt, setIsStakingContractPrebuilt] =
+    useState(true);
   const [allOwnersData, setAllOwnersData] = useState([]);
   const [loading, setLoading] = useState(false);
   const chainRef = useRef();
-
   const handleInputChange = (e, setterFunction) => {
     setterFunction(e.target.value);
   };
 
-  const handleGetAllNFTs = async () => {
+  const handleGetAllNFTsPrebuilt = async () => {
     try {
-      setLoading(true);
       const chainSlug = chainRef.current?.value;
       if (!chainSlug || !nftCollectionAddress || !stakingContractAddress) {
-        setLoading(false);
-        return alert(
-          "Please enter all the detais first!"
-        );
+        return alert("Please enter all the details first!");
       }
       const sdk = new ThirdwebSDK(chainSlug, {
         clientId: process.env.REACT_APP_TEMPLATE_CLIENT_ID,
       });
-      const nftCollection = await sdk.getContract(nftCollectionAddress);
-      const stakingContract = await sdk.getContract(stakingContractAddress);
+      const [nftCollection, stakingContract] = await Promise.all([
+        sdk.getContract(nftCollectionAddress),
+        sdk.getContract(stakingContractAddress),
+      ]);
 
       const owners = await nftCollection.erc721.getAllOwners();
 
       const filteredOwners = owners.filter(
         (owner) =>
           owner.owner !== stakingContractAddress &&
-          owner.owner !== DEAD_ADDRESS
+          owner.owner !== DEAD_ADDRESS &&
+          owner.owner !== ADDRESS_ZERO
       );
 
       const stakedCount = owners.length - filteredOwners.length;
 
-      const callsPerSecond = 100;
+      const callsPerSecond = 50;
       const delayBetweenCalls = 1000 / callsPerSecond;
 
       async function processStakedData(startIndex) {
+        console.log("starred");
         const stakedOwners = [];
         for (let i = startIndex; i < stakedCount; i++) {
           try {
@@ -80,6 +86,7 @@ function Home() {
             break;
           }
         }
+        console.log("stopped");
         return stakedOwners;
       }
 
@@ -87,6 +94,55 @@ function Home() {
 
       setAllOwnersData([...filteredOwners, ...stakedOwners]);
       setLoading(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleGetAllNFTsCustom= async () => {
+    try {
+      const chainSlug = chainRef.current?.value;
+      if (!chainSlug || !nftCollectionAddress) {
+        return alert("Please enter all the details first!");
+      }
+      const sdk = new ThirdwebSDK(chainSlug, {
+        clientId: process.env.REACT_APP_TEMPLATE_CLIENT_ID,
+      });
+      const nftCollection = await sdk.getContract(nftCollectionAddress);
+
+      const owners = await nftCollection.erc721.getAllOwners();
+      let counter = 0;
+      await Promise.all(
+        owners.map(async (owner) => {
+          const code = await sdk.getProvider().getCode(owner.owner);
+          // Use a regular if statement
+          if (code != "0x") {
+            counter++;
+          }
+        })
+      );
+      setNotWalletAddressCount(counter);
+      setAllOwnersData(owners);
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleGetAllNFTs = async () => {
+    try {
+      setLoading(true);
+      const chainSlug = chainRef.current?.value;
+      if (!chainSlug || !nftCollectionAddress) {
+        setLoading(false);
+        return alert("Please enter all the details first!");
+      }
+
+      if (isStakingContractPrebuilt) {
+        await handleGetAllNFTsPrebuilt();
+      } else {
+        await handleGetAllNFTsCustom();
+      }
     } catch (error) {
       console.error(error);
     }
@@ -106,61 +162,118 @@ function Home() {
   };
 
   return (
-    <Flex direction="column" align="center" justify="center" height="100vh">
-      <Heading mb={6} color="white">
-        Get All NFTs
-      </Heading>
-      <VStack spacing={4}>
-        <FormLabel color="white">Your NFT Collection Address</FormLabel>
-        <Input
-          placeholder=""
-          value={nftCollectionAddress}
-          onChange={(e) => handleInputChange(e, setNftCollection)}
-          color="white"
-          bg="gray.800"
-          _placeholder={{ color: "white" }}
-        />
-        <FormLabel color="white">Your Staking Collection Address</FormLabel>
-        <Input
-          placeholder=""
-          value={stakingContractAddress}
-          onChange={(e) => handleInputChange(e, setStakingContract)}
-          color="white"
-          bg="gray.800"
-          _placeholder={{ color: "white" }}
-        />
-        <FormLabel color="white">Select Network</FormLabel>
-        <InputGroup>
+    <>
+      <Alert status="warning" mb={4}>
+        <AlertIcon />
+        The tool is in beta & is only tested with pre-builts, please make sure
+        to test on testnets first
+      </Alert>
+      <Flex direction="column" align="center" justify="center" height="100vh">
+        <Heading mb={6} color="white">
+          Better Snapshot v0.0.1
+        </Heading>
+        <VStack
+          spacing={4}
+          align="stretch"
+          w={["90%", "70%", "50%", "40%"]}
+          mx="auto"
+        >
+          {" "}
+          {/* Set maximum width and center the content */}
+          <FormLabel color="white">Your NFT Collection Address</FormLabel>
           <Input
-            type="text"
-            list="network-list"
-            placeholder="Select a network"
-            className="input input-bordered w-full px-3 py-2"
-            ref={chainRef}
+            placeholder=""
+            value={nftCollectionAddress}
+            onChange={(e) => handleInputChange(e, setNftCollection)}
             color="white"
+            bg="gray.800"
+            _placeholder={{ color: "white" }}
           />
-        </InputGroup>
-        <datalist id="network-list" color="white">
-          {allChains.map((item) => (
-            <option key={item.chainId} value={item.slug}>
-              {item.name}
-            </option>
-          ))}
-        </datalist>
-        <Tooltip label="Data may take some minutes to load" hasArrow>
-          <VStack spacing={4}>
-            <Button bg="green.500" onClick={handleGetAllNFTs} isLoading={loading}>
-              Get Data
-            </Button>
-            {allOwnersData.length > 0 && (
-              <Button bg="green.500" onClick={downloadAirdropContent}>
-                Download Excel {allOwnersData.length}
+          <Checkbox
+            isChecked={isStakingContractPrebuilt}
+            onChange={(e) => setIsStakingContractPrebuilt(e.target.checked)}
+            color="white"
+          >
+            Is Staking Contract Prebuilt?
+          </Checkbox>
+          {isStakingContractPrebuilt ? (
+            <>
+              <FormLabel color="white">
+                Your Staking Collection Address
+              </FormLabel>
+              <Input
+                placeholder=""
+                value={stakingContractAddress}
+                onChange={(e) => handleInputChange(e, setStakingContract)}
+                color="white"
+                bg="gray.800"
+                _placeholder={{ color: "white" }}
+              />
+            </>
+          ) : (
+            <Tooltip
+              label="Staking contract not available for prebuilt contracts"
+              hasArrow
+            >
+              <Button isDisabled bg="gray.500" h="80px">
+                The tool is not available for custom staking contract but the{" "}
+                <br />
+                tool can get you a number of holders which are contract <br />
+                addresses and not real wallet addresses in your collection
               </Button>
-            )}
-          </VStack>
-        </Tooltip>
-      </VStack>
-    </Flex>
+            </Tooltip>
+          )}
+          <FormLabel color="white">Select Network</FormLabel>
+          <InputGroup>
+            <Input
+              type="text"
+              list="network-list"
+              placeholder="Select a network"
+              className="input input-bordered w-full px-3 py-2"
+              ref={chainRef}
+              color="white"
+            />
+          </InputGroup>
+          <datalist id="network-list" color="white">
+            {allChains.map((item) => (
+              <option key={item.chainId} value={item.slug}>
+                {item.name}
+              </option>
+            ))}
+          </datalist>
+          <Tooltip label="Data may take some minutes to load" hasArrow>
+            <VStack spacing={4}>
+              <Button
+                bg="green.500"
+                w={["90%", "70%", "50%", "40%"]}
+                onClick={handleGetAllNFTs}
+                isLoading={loading}
+              >
+                Get Data
+              </Button>
+              {allOwnersData.length > 0 && (
+                <>
+                  <Button
+                    bg="green.500"
+                    w={["90%", "70%", "50%", "40%"]}
+                    onClick={downloadAirdropContent}
+                  >
+                    Download Excel {allOwnersData.length}
+                  </Button>
+
+                  {!isStakingContractPrebuilt && (
+                    <Text color="white">
+                      {nonWalletAddressCount} NFTs in your collection are owned
+                      by contracts(could be staking etc)
+                    </Text>
+                  )}
+                </>
+              )}
+            </VStack>
+          </Tooltip>
+        </VStack>
+      </Flex>
+    </>
   );
 }
 
