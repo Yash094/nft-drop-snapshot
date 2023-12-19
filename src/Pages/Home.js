@@ -46,7 +46,10 @@ function Home() {
         sdk.getContract(nftCollectionAddress),
         sdk.getContract(stakingContractAddress),
       ]);
-
+      const stakingToken = await stakingContract.call("stakingToken", []);
+      if (stakingToken !== nftCollectionAddress) {
+        return alert("Invalid Staking Contract");
+      }
       const owners = await nftCollection.erc721.getAllOwners();
 
       const filteredOwners = owners.filter(
